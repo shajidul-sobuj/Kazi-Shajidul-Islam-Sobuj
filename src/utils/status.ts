@@ -1,4 +1,4 @@
-import { Requirement, UploadedFile, OfficialStatus, EvaluatedRequirement } from '../types';
+import type { Requirement, UploadedFile, OfficialStatus, EvaluatedRequirement } from '../types';
 
 /**
  * Compare two YYYY-MM-DD date strings safely without timezone shifts.

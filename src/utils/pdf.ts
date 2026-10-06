@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { EvaluatedRequirement, TenderMetadata, UploadedFile } from '../types';
+import type { EvaluatedRequirement, TenderMetadata } from '../types';
 
 /**
  * Read and count pages of a PDF File safely.
@@ -41,13 +41,6 @@ export interface GeneratePackageOptions {
   onProgress?: (percent: number, stepText: string) => void;
 }
 
-/**
- * Generate the complete tender package PDF adhering to Section 6:
- * 1. Page 1: Cover page (English)
- * 2. Optional Page 2: Index / Table of Contents
- * 3. Matched documents in order, all pages included, optional skipped if unprovided.
- * 4. Stamped footer on EVERY page: <tender_id> | Page X of Y
- */
 export async function generateTenderPackagePdf({
   tender,
   evaluatedRequirements,
@@ -67,21 +60,18 @@ export async function generateTenderPackagePdf({
 
   const generationDate = new Date().toISOString().split('T')[0];
 
-  // Step 1: Create Cover Page (Page 1)
   onProgress?.(15, 'Generating Executive Cover Page...');
-  const coverPage = mergedPdf.addPage([595.28, 841.89]); // Standard A4 (Points)
+  const coverPage = mergedPdf.addPage([595.28, 841.89]);
   const { width: cWidth, height: cHeight } = coverPage.getSize();
 
-  // Draw header accent bar
   coverPage.drawRectangle({
     x: 0,
     y: cHeight - 12,
     width: cWidth,
     height: 12,
-    color: rgb(0.12, 0.28, 0.52), // Primary navy blue
+    color: rgb(0.12, 0.28, 0.52),
   });
 
-  // Cover Page Title & Subtitle
   coverPage.drawText('TENDER SUBMISSION PACKAGE', {
     x: 50,
     y: cHeight - 65,
@@ -94,7 +84,7 @@ export async function generateTenderPackagePdf({
     x: 50,
     y: cHeight - 82,
     size: 9,
-    font: helvetica,
+    font: helveticaFont,
     color: rgb(0.4, 0.45, 0.5),
   });
 
@@ -105,7 +95,6 @@ export async function generateTenderPackagePdf({
     color: rgb(0.85, 0.88, 0.92),
   });
 
-  // Tender Metadata Box
   coverPage.drawRectangle({
     x: 50,
     y: cHeight - 245,
@@ -134,19 +123,17 @@ export async function generateTenderPackagePdf({
       font: helveticaBold,
       color: rgb(0.3, 0.35, 0.42),
     });
-    // Truncate long value if needed
     const valText = item.value.length > 55 ? item.value.substring(0, 52) + '...' : item.value;
     coverPage.drawText(valText, {
       x: 195,
       y: metaY,
       size: 9.5,
-      font: helvetica,
+      font: helveticaFont,
       color: rgb(0.1, 0.12, 0.15),
     });
     metaY -= 20;
   }
 
-  // Included Documents Header
   const docListStartY = cHeight - 275;
   coverPage.drawText('SCHEDULE OF INCLUDED DOCUMENTS', {
     x: 50,
@@ -156,7 +143,6 @@ export async function generateTenderPackagePdf({
     color: rgb(0.12, 0.28, 0.52),
   });
 
-  // Document table header
   coverPage.drawRectangle({
     x: 50,
     y: docListStartY - 24,
@@ -189,7 +175,7 @@ export async function generateTenderPackagePdf({
       x: 58,
       y: rowY,
       size: 8.5,
-      font: helvetica,
+      font: helveticaFont,
       color: rgb(0.2, 0.2, 0.2),
     });
 
@@ -211,7 +197,7 @@ export async function generateTenderPackagePdf({
       x: 260,
       y: rowY,
       size: 8,
-      font: helvetica,
+      font: helveticaFont,
       color: rgb(0.35, 0.4, 0.45),
     });
 
@@ -219,7 +205,7 @@ export async function generateTenderPackagePdf({
       x: 420,
       y: rowY,
       size: 8,
-      font: helvetica,
+      font: helveticaFont,
       color: rgb(0.2, 0.2, 0.2),
     });
 
@@ -230,26 +216,24 @@ export async function generateTenderPackagePdf({
       x: 475,
       y: rowY,
       size: 8,
-      font: helvetica,
+      font: helveticaFont,
       color: rgb(0.2, 0.2, 0.2),
     });
 
     rowY -= 19;
-    if (rowY < 80) break; // Keep space above footer
+    if (rowY < 80) break;
   }
 
-  // Step 2: Track document page starts for Index / Table of Contents
   const documentPageStarts: Array<{ title: string; order: number; startPage: number; pages: number }> = [];
-  let currentPageIndex = 1; // 1-based index (Cover is page 1)
+  let currentPageIndex = 1;
 
   let indexPageRef: any = null;
   if (includeIndexPage) {
-    currentPageIndex++; // Account for Index page
+    currentPageIndex++;
     onProgress?.(25, 'Generating Table of Contents / Index...');
     indexPageRef = mergedPdf.addPage([595.28, 841.89]);
   }
 
-  // Step 3: Append all matched PDF files in strict requirement order
   for (let i = 0; i < includedDocs.length; i++) {
     const doc = includedDocs[i];
     const progressPercent = Math.round(30 + ((i + 1) / includedDocs.length) * 50);
@@ -277,7 +261,6 @@ export async function generateTenderPackagePdf({
     }
   }
 
-  // Populate Index Page if requested
   if (includeIndexPage && indexPageRef) {
     const { width: iWidth, height: iHeight } = indexPageRef.getSize();
     indexPageRef.drawText('DOCUMENT INDEX & DIRECTORY', {
@@ -305,12 +288,11 @@ export async function generateTenderPackagePdf({
         color: rgb(0.2, 0.25, 0.3),
       });
 
-      // Dots connector
       indexPageRef.drawText('. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .', {
         x: 230,
         y: idxY,
         size: 7,
-        font: helvetica,
+        font: helveticaFont,
         color: rgb(0.7, 0.7, 0.7),
       });
 
@@ -327,19 +309,16 @@ export async function generateTenderPackagePdf({
     }
   }
 
-  // Step 4: Add required footer to EVERY page, including cover:
-  // Format: <tender_id> | Page X of Y (Y = total pages)
   const totalPages = mergedPdf.getPageCount();
   onProgress?.(90, `Applying official page stamp to all ${totalPages} pages...`);
 
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     const page = mergedPdf.getPage(pageNum - 1);
-    const { width, height } = page.getSize();
+    const { width } = page.getSize();
 
     const footerText = `${tender.tender_id} | Page ${pageNum} of ${totalPages}`;
     const textWidth = helveticaFont.widthOfTextAtSize(footerText, 8.5);
 
-    // Subtle background strip to guarantee readability without covering content
     page.drawRectangle({
       x: 0,
       y: 0,
@@ -349,7 +328,6 @@ export async function generateTenderPackagePdf({
       opacity: 0.92,
     });
 
-    // Hairline divider above footer
     page.drawLine({
       start: { x: 30, y: 24 },
       end: { x: width - 30, y: 24 },
@@ -357,12 +335,11 @@ export async function generateTenderPackagePdf({
       color: rgb(0.8, 0.83, 0.88),
     });
 
-    // Center the footer text
     page.drawText(footerText, {
       x: (width - textWidth) / 2,
       y: 8,
       size: 8.5,
-      font: helvetica,
+      font: helveticaFont,
       color: rgb(0.3, 0.35, 0.4),
     });
   }
