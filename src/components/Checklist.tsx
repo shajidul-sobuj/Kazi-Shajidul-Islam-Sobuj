@@ -1,7 +1,6 @@
-
-import { CheckCircle2, AlertCircle, XCircle, HelpCircle, Calendar } from 'lucide-react';
+import { CheckCircle2, AlertCircle, XCircle, HelpCircle, Calendar, FileText } from 'lucide-react';
 import type { EvaluatedRequirement, Language, UploadedFile, OfficialStatus } from '../types';
-import { translations, getStatusText } from '../i18n/translations';
+import { translations, getStatusText, getStatusDescription } from '../i18n/translations';
 
 interface Props {
   language: Language;
@@ -14,16 +13,12 @@ interface Props {
 export function Checklist({ language, evaluatedRequirements, files, onMatchChange, onExpiryChange }: Props) {
   const t = translations[language];
 
-  // Get uncorrupted files that are either assigned to this req, or NOT assigned to any req yet, OR are not duplicates that have already been assigned.
-  // Actually, to keep it simple, just show all valid files in the dropdown. 
-  // We can add logic to disable ones that are already assigned to OTHER requirements or are duplicates of assigned files.
   const getAvailableFiles = (currentReqId: string, currentMatchId?: string) => {
     const assignedToOther = new Set(
       evaluatedRequirements
         .filter(er => er.requirement.id !== currentReqId && er.matchedFileId)
         .map(er => er.matchedFileId!)
     );
-    // Also track hashes of files assigned to OTHER requirements
     const assignedHashesToOther = new Set(
       evaluatedRequirements
         .filter(er => er.requirement.id !== currentReqId && er.matchedFile)
@@ -36,118 +31,116 @@ export function Checklist({ language, evaluatedRequirements, files, onMatchChang
     );
   };
 
-  const getStatusIcon = (status: OfficialStatus) => {
+  const getStatusVisuals = (status: OfficialStatus) => {
     switch(status) {
-      case 'OK': return <CheckCircle2 className="text-emerald-400" size={18} />;
-      case 'Not provided': return <HelpCircle className="text-slate-400" size={18} />;
+      case 'OK': return { icon: <CheckCircle2 className="text-emerald-500" size={16} />, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      case 'Not provided': return { icon: <HelpCircle className="text-slate-400" size={16} />, color: 'bg-slate-50 text-slate-600 border-slate-200' };
       case 'Missing':
       case 'Expired': 
-        return <XCircle className="text-red-400" size={18} />;
+        return { icon: <XCircle className="text-red-500" size={16} />, color: 'bg-red-50 text-red-700 border-red-200' };
       case 'Expiry date needed':
-        return <AlertCircle className="text-amber-400" size={18} />;
+        return { icon: <AlertCircle className="text-amber-500" size={16} />, color: 'bg-amber-50 text-amber-700 border-amber-200' };
     }
   };
 
-  const getStatusBg = (status: OfficialStatus) => {
-    if (status === 'OK') return 'bg-emerald-900/30 border-emerald-500/30 text-emerald-200';
-    if (status === 'Not provided') return 'bg-slate-800 border-slate-600 text-slate-300';
-    if (status === 'Expiry date needed') return 'bg-amber-900/30 border-amber-500/30 text-amber-200';
-    return 'bg-red-900/30 border-red-500/30 text-red-200'; // Blocking/Missing/Expired
-  };
-
   return (
-    <div className="bg-slate-800 rounded-lg shadow-sm border border-slate-700 overflow-hidden">
-      <div className="p-4 border-b border-slate-700 bg-slate-800/80">
-        <h3 className="text-lg font-semibold text-slate-100">{t.checklistTitle}</h3>
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="p-5 border-b border-slate-200 bg-slate-50">
+        <h3 className="text-lg font-semibold text-slate-900">{t.checklistTitle}</h3>
+        <p className="text-sm text-slate-500 mt-1">{t.checklistSubtitle}</p>
       </div>
       
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-900 text-slate-400 uppercase text-xs">
-            <tr>
-              <th className="px-4 py-3 font-medium">#</th>
-              <th className="px-4 py-3 font-medium">{t.document}</th>
-              <th className="px-4 py-3 font-medium">{t.type}</th>
-              <th className="px-4 py-3 font-medium min-w-[200px]">{t.matchedFile}</th>
-              <th className="px-4 py-3 font-medium">{t.expiryDate}</th>
-              <th className="px-4 py-3 font-medium text-right">{t.status}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-700/50">
-            {evaluatedRequirements.map((er) => {
-              const req = er.requirement;
-              const title = language === 'en' ? req.title_en : req.title_bn;
-              const availableFiles = getAvailableFiles(req.id, er.matchedFileId);
+      <div className="p-5 space-y-4">
+        {evaluatedRequirements.map((er) => {
+          const req = er.requirement;
+          const title = language === 'en' ? req.title_en : req.title_bn;
+          const availableFiles = getAvailableFiles(req.id, er.matchedFileId);
+          const visuals = getStatusVisuals(er.status);
+          
+          return (
+            <div key={req.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm hover:border-blue-200 hover:shadow-md transition-all duration-200">
               
-              return (
-                <tr key={req.id} className="hover:bg-slate-750/30 transition-colors">
-                  <td className="px-4 py-3 font-medium text-slate-300">{req.order}</td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-slate-200">{title}</div>
-                    <div className="text-[11px] text-slate-500 font-mono mt-0.5">{req.id}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-medium uppercase tracking-wider ${req.mandatory ? 'bg-blue-900/40 text-blue-300 border border-blue-800' : 'bg-slate-700 text-slate-300 border border-slate-600'}`}>
-                      {req.mandatory ? t.mandatory : t.optional}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={er.matchedFileId || ''}
-                        onChange={(e) => onMatchChange(req.id, e.target.value)}
-                        className="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded focus:ring-blue-500 focus:border-blue-500 block w-full p-2 outline-none"
-                      >
-                        <option value="">{t.selectFile}</option>
-                        {availableFiles.map(f => (
-                          <option key={f.id} value={f.id}>
-                            {f.name} ({f.pageCount} {t.pages})
-                          </option>
-                        ))}
-                      </select>
-                      {er.matchedFileId && (
-                        <button 
-                          onClick={() => onMatchChange(req.id, '')}
-                          className="p-2 text-slate-400 hover:text-red-400 transition-colors"
-                          title={t.unmatch}
+              <div className="flex flex-col sm:flex-row">
+                
+                {/* Left side: Requirements info */}
+                <div className="flex-1 p-4 sm:p-5 flex gap-4">
+                  <div className="shrink-0 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm border border-slate-200">
+                    {req.order.toString().padStart(2, '0')}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="text-base font-semibold text-slate-900 leading-snug">{title}</h4>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm border ${req.mandatory ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                            {req.mandatory ? t.mandatory : t.optional}
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-400">{req.id}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1 max-w-sm">
+                        <select
+                          value={er.matchedFileId || ''}
+                          onChange={(e) => onMatchChange(req.id, e.target.value)}
+                          className="w-full text-sm rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white"
                         >
-                          <XCircle size={16} />
-                        </button>
+                          <option value="">{t.selectFile}</option>
+                          {availableFiles.map(f => (
+                            <option key={f.id} value={f.id}>
+                              {f.name} ({f.pageCount} {t.pages})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {req.has_expiry && (
+                        <div className="relative w-full sm:w-auto shrink-0">
+                          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                            <Calendar size={14} />
+                          </div>
+                          <input
+                            type="date"
+                            value={er.expiryDate || ''}
+                            onChange={(e) => onExpiryChange(req.id, e.target.value)}
+                            disabled={!er.matchedFileId}
+                            className={`pl-8 pr-3 py-2 text-sm rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 w-full bg-white
+                              ${!er.matchedFileId ? 'opacity-50 cursor-not-allowed border-slate-200' : 
+                                !er.expiryDate ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : 'border-slate-300'}`}
+                          />
+                        </div>
                       )}
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {req.has_expiry && er.matchedFileId ? (
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
-                          <Calendar size={14} />
-                        </div>
-                        <input
-                          type="date"
-                          value={er.expiryDate || ''}
-                          onChange={(e) => onExpiryChange(req.id, e.target.value)}
-                          className={`bg-slate-900 border text-sm rounded focus:ring-blue-500 focus:border-blue-500 block w-full pl-8 p-1.5 outline-none ${!er.expiryDate ? 'border-amber-500/50 text-amber-200' : 'border-slate-700 text-slate-200'}`}
-                        />
-                      </div>
-                    ) : (
-                      <span className="text-slate-500 text-xs italic">
-                        {req.has_expiry ? t.statusMissing : '-'}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border ${getStatusBg(er.status)}`}>
-                        {getStatusIcon(er.status)}
-                        <span className="whitespace-nowrap">{getStatusText(er.status, language)}</span>
-                      </span>
+                  </div>
+                </div>
+
+                {/* Right side: Status panel */}
+                <div className={`sm:w-64 p-4 sm:p-5 flex flex-col justify-center border-t sm:border-t-0 sm:border-l border-slate-100 ${er.isBlocking ? 'bg-red-50/30' : 'bg-slate-50/50'}`}>
+                  
+                  <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border w-fit ${visuals.color}`}>
+                    {visuals.icon}
+                    <span>{getStatusText(er.status, language)}</span>
+                  </div>
+                  
+                  <p className="text-[11px] text-slate-600 mt-2 leading-relaxed">
+                    {getStatusDescription(er.status, language)}
+                  </p>
+                  
+                  {er.matchedFile && (
+                    <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center gap-1.5 text-xs text-slate-500 truncate">
+                      <FileText size={12} className="shrink-0" />
+                      <span className="truncate">{er.matchedFile.name}</span>
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  )}
+
+                </div>
+
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

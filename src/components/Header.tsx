@@ -1,6 +1,6 @@
 import type { Language } from '../types';
 import { translations } from '../i18n/translations';
-import { FileText, Globe } from 'lucide-react';
+import { FolderCheck } from 'lucide-react';
 
 interface Props {
   language: Language;
@@ -11,22 +11,31 @@ export function Header({ language, onLanguageChange }: Props) {
   const t = translations[language];
 
   return (
-    <header className="bg-slate-800 text-slate-100 p-4 shadow-md flex justify-between items-center">
+    <header className="bg-white border-b border-slate-200 py-4 px-6 flex justify-between items-center sticky top-0 z-10 shadow-sm">
       <div className="flex items-center space-x-3">
-        <FileText size={28} className="text-blue-400" />
+        <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-sm">
+          <FolderCheck size={20} strokeWidth={2.5} />
+        </div>
         <div>
-          <h1 className="text-xl font-bold">{t.appTitle}</h1>
-          <p className="text-xs text-slate-400 hidden sm:block">{t.appSubtitle}</p>
+          <h1 className="text-lg font-bold text-slate-900 leading-none">{t.appTitle}</h1>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-1">{t.appSubtitle}</p>
         </div>
       </div>
       
-      <button
-        onClick={() => onLanguageChange(language === 'en' ? 'bn' : 'en')}
-        className="flex items-center space-x-2 bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-sm transition-colors"
-      >
-        <Globe size={16} />
-        <span>{t.langToggle}</span>
-      </button>
+      <div className="flex items-center bg-slate-100 p-1 rounded-md border border-slate-200">
+        <button
+          onClick={() => onLanguageChange('en')}
+          className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-colors ${language === 'en' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          EN
+        </button>
+        <button
+          onClick={() => onLanguageChange('bn')}
+          className={`px-3 py-1.5 text-xs font-bold rounded-sm transition-colors ${language === 'bn' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          বাংলা
+        </button>
+      </div>
     </header>
   );
 }
