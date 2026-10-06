@@ -33,18 +33,18 @@ export function PDFUploaderDropzone({ language, files, onFilesAdded }: DropzoneP
     );
 
     if (validFiles.length !== newFiles.length) {
-      setErrorMsg(t.invalidPdf);
+      setErrorMsg(t.nonPdfRejected || 'Only PDF files are supported.');
     }
 
     if (files.length + validFiles.length > MAX_FILES) {
-      setErrorMsg(`You can only upload up to ${MAX_FILES} files.`);
+      setErrorMsg(t.fileCountLimit || `You can only upload up to ${MAX_FILES} files.`);
       setIsProcessing(false);
       return;
     }
 
     const newSize = validFiles.reduce((acc, f) => acc + f.size, 0);
     if (totalCurrentSize + newSize > MAX_TOTAL_SIZE) {
-      setErrorMsg(`Total file size cannot exceed 50 MB.`);
+      setErrorMsg(t.fileSizeLimit || `Total file size cannot exceed 50 MB.`);
       setIsProcessing(false);
       return;
     }
@@ -63,7 +63,7 @@ export function PDFUploaderDropzone({ language, files, onFilesAdded }: DropzoneP
       try {
         const result = await inspectPdfFile(file);
         rawBytes = new Uint8Array(result.rawBytes);
-        hash = await calculateSHA256(rawBytes.buffer);
+        hash = await calculateSHA256(rawBytes.buffer as ArrayBuffer);
         
         try {
           const pdfJsBytes = new Uint8Array(rawBytes);
@@ -87,6 +87,7 @@ export function PDFUploaderDropzone({ language, files, onFilesAdded }: DropzoneP
 
       processedFiles.push({
         id: crypto.randomUUID(),
+        file: file,
         name: file.name,
         size: file.size,
         isCorrupted,
@@ -94,7 +95,7 @@ export function PDFUploaderDropzone({ language, files, onFilesAdded }: DropzoneP
         pageCount,
         hash,
         isDuplicate: false,
-        rawBytes: isCorrupted ? undefined : rawBytes,
+        rawBytes,
         pdfText,
         detectedExpiryDate
       });
@@ -111,7 +112,7 @@ export function PDFUploaderDropzone({ language, files, onFilesAdded }: DropzoneP
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">{t.uploadTitle}</h2>
+        <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">{t.uploadPdfTitle}</h2>
         <p className="text-sm text-slate-500 mt-1">Add the PDFs you want to include in this tender package.</p>
       </div>
 
@@ -136,7 +137,7 @@ export function PDFUploaderDropzone({ language, files, onFilesAdded }: DropzoneP
           <UploadCloud size={24} />
         </div>
         <p className="text-slate-700 font-medium mb-1">
-          {isProcessing ? t.processing : (
+          {isProcessing ? 'Processing...' : (
             <>
               {t.dropzoneText} <span className="text-blue-600 underline decoration-blue-200 underline-offset-4">{t.dropzoneBrowse}</span>
             </>
