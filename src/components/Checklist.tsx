@@ -1,6 +1,7 @@
 import { CheckCircle2, AlertCircle, XCircle, HelpCircle, Calendar, FileText } from 'lucide-react';
 import type { EvaluatedRequirement, Language, UploadedFile, OfficialStatus } from '../types';
 import { translations, getStatusText, getStatusDescription } from '../i18n/translations';
+import { hasCandidateFiles } from '../utils/autoMatch';
 
 interface Props {
   language: Language;
@@ -97,19 +98,26 @@ export function Checklist({ language, evaluatedRequirements, files, onMatchChang
                       </div>
 
                       {req.has_expiry && (
-                        <div className="relative w-full sm:w-auto shrink-0">
-                          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
-                            <Calendar size={14} />
+                        <div className="w-full sm:w-auto shrink-0 flex flex-col gap-1">
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                              <Calendar size={14} />
+                            </div>
+                            <input
+                              type="date"
+                              value={er.expiryDate || ''}
+                              onChange={(e) => onExpiryChange(req.id, e.target.value)}
+                              disabled={!er.matchedFileId}
+                              className={`pl-8 pr-3 py-2 text-sm rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 w-full bg-white
+                                ${!er.matchedFileId ? 'opacity-50 cursor-not-allowed border-slate-200' : 
+                                  !er.expiryDate ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : 'border-slate-300'}`}
+                            />
                           </div>
-                          <input
-                            type="date"
-                            value={er.expiryDate || ''}
-                            onChange={(e) => onExpiryChange(req.id, e.target.value)}
-                            disabled={!er.matchedFileId}
-                            className={`pl-8 pr-3 py-2 text-sm rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 w-full bg-white
-                              ${!er.matchedFileId ? 'opacity-50 cursor-not-allowed border-slate-200' : 
-                                !er.expiryDate ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : 'border-slate-300'}`}
-                          />
+                          {er.matchedFile?.detectedExpiryDate && er.expiryDate === er.matchedFile.detectedExpiryDate && (
+                            <span className="text-[10px] font-medium text-emerald-600 flex items-center gap-1">
+                              <CheckCircle2 size={10} /> {language === 'en' ? 'Detected from PDF' : 'পিডিএফ থেকে শনাক্ত করা হয়েছে'}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -124,8 +132,14 @@ export function Checklist({ language, evaluatedRequirements, files, onMatchChang
                     <span>{getStatusText(er.status, language)}</span>
                   </div>
                   
-                  <p className="text-[11px] text-slate-600 mt-2 leading-relaxed">
-                    {getStatusDescription(er.status, language)}
+                  <p className="text-[11px] text-slate-600 mt-2 leading-relaxed font-medium">
+                    {er.status === 'Missing' && hasCandidateFiles(req, files) 
+                      ? t.validNotFound 
+                      : er.status === 'Expired' 
+                        ? t.expiredManualRequired 
+                        : er.status === 'OK' && req.has_expiry && er.expiryDate
+                          ? (language === 'en' ? `Valid until ${er.expiryDate}` : `মেয়াদ: ${er.expiryDate} পর্যন্ত বৈধ`)
+                          : getStatusDescription(er.status, language)}
                   </p>
                   
                   {er.matchedFile && (

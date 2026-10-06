@@ -75,6 +75,8 @@ export const translations = {
     statusNotProvidedDesc: 'Optional document was not provided.',
     statusOk: 'OK',
     statusOkDesc: 'Requirement is satisfied.',
+    validNotFound: 'Valid document not found — manual selection required.',
+    expiredManualRequired: 'Expired — manual selection required.',
 
     // Generation
     generatePackageBtn: 'Generate Package',
@@ -162,6 +164,8 @@ export const translations = {
     statusNotProvidedDesc: 'ঐচ্ছিক দলিল দেওয়া হয়নি।',
     statusOk: 'ঠিক আছে',
     statusOkDesc: 'দলিলটি সঠিক।',
+    validNotFound: 'বৈধ ডকুমেন্ট পাওয়া যায়নি — ম্যানুয়ালি নির্বাচন করুন।',
+    expiredManualRequired: 'মেয়াদ শেষ — ম্যানুয়ালি নির্বাচন করুন।',
 
     // Generation
     generatePackageBtn: 'প্যাকেজ তৈরি করুন',

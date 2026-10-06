@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { JSONLoader } from './components/JSONLoader';
-import { PDFUploader } from './components/PDFUploader';
+import { PDFUploaderDropzone, PDFReviewTable } from './components/PDFUploader';
 import { Checklist } from './components/Checklist';
 import type { Language, RequirementsData, UploadedFile, PackageGenerationProgress } from './types';
 import { evaluateAllRequirements } from './utils/status';
@@ -40,7 +40,35 @@ function App() {
   }, [files.length]);
 
   const handleFilesAdded = (newFiles: UploadedFile[]) => {
-    setFiles(prev => [...prev, ...newFiles]);
+    setFiles(prev => {
+      const updatedFiles = [...prev, ...newFiles];
+      
+      // Auto-match newly added files if tenderData exists
+      if (tenderData) {
+        setTimeout(() => {
+          setMatches(currentMatches => {
+            const newMatches = suggestAutoMatches(tenderData.requirements, updatedFiles, currentMatches, tenderData.tender.submission_deadline);
+            
+            if (Object.keys(newMatches).length > Object.keys(currentMatches).length) {
+              setExpiryDates(prevExpiries => {
+                const nextExpiries = { ...prevExpiries };
+                Object.entries(newMatches).forEach(([reqId, fileId]) => {
+                  const file = updatedFiles.find(f => f.id === fileId);
+                  if (file && file.detectedExpiryDate && !nextExpiries[reqId]) {
+                    nextExpiries[reqId] = file.detectedExpiryDate;
+                  }
+                });
+                return nextExpiries;
+              });
+              return newMatches;
+            }
+            return currentMatches;
+          });
+        }, 0);
+      }
+      
+      return updatedFiles;
+    });
   };
 
   const handleFileRemoved = (fileId: string) => {
@@ -64,6 +92,13 @@ function App() {
       }
       return next;
     });
+
+    if (fileId) {
+      const file = files.find(f => f.id === fileId);
+      if (file && file.detectedExpiryDate) {
+        setExpiryDates(prev => ({ ...prev, [reqId]: file.detectedExpiryDate! }));
+      }
+    }
   };
 
   const handleExpiryChange = (reqId: string, date: string) => {
@@ -72,8 +107,20 @@ function App() {
 
   const handleAutoMatch = () => {
     if (!tenderData) return;
-    const newMatches = suggestAutoMatches(tenderData.requirements, files, matches);
+    const newMatches = suggestAutoMatches(tenderData.requirements, files, matches, tenderData.tender.submission_deadline);
     setMatches(newMatches);
+
+    // Also auto-populate expiry dates for the new matches
+    setExpiryDates(prev => {
+      const next = { ...prev };
+      Object.entries(newMatches).forEach(([reqId, fileId]) => {
+        const file = files.find(f => f.id === fileId);
+        if (file && file.detectedExpiryDate && !next[reqId]) {
+          next[reqId] = file.detectedExpiryDate;
+        }
+      });
+      return next;
+    });
   };
 
   const evaluatedRequirements = useMemo(() => {
@@ -204,133 +251,141 @@ function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="flex flex-col gap-8 max-w-5xl mx-auto">
               
-              <div className="lg:col-span-2 space-y-8">
-                <Checklist 
-                  language={language}
-                  evaluatedRequirements={evaluatedRequirements}
-                  files={files}
-                  onMatchChange={handleMatchChange}
-                  onExpiryChange={handleExpiryChange}
-                />
-              </div>
+              <PDFUploaderDropzone
+                language={language}
+                files={files}
+                onFilesAdded={handleFilesAdded}
+              />
 
-              {/* Sidebar Action Panel */}
-              <div className="space-y-6">
+              <Checklist 
+                language={language}
+                evaluatedRequirements={evaluatedRequirements}
+                files={files}
+                onMatchChange={handleMatchChange}
+                onExpiryChange={handleExpiryChange}
+              />
+
+              <PDFReviewTable
+                language={language}
+                files={files}
+                evaluatedRequirements={evaluatedRequirements}
+                onFileRemoved={handleFileRemoved}
+              />
+
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-900 mb-6">{t.actions || 'Package Generation'}</h3>
                 
-                <PDFUploader 
-                  language={language}
-                  files={files}
-                  onFilesAdded={handleFilesAdded}
-                  onFileRemoved={handleFileRemoved}
-                />
-
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 sticky top-24">
-                  <h3 className="text-base font-semibold text-slate-900 mb-4">{t.actions}</h3>
-                  
-                  <div className="space-y-3 mb-6">
-                    <button 
-                      onClick={handleAutoMatch}
-                      className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg shadow-sm transition-colors font-medium border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    >
-                      <Wand2 size={18} className="text-purple-500" />
-                      <span>{t.autoMatchBtn}</span>
-                    </button>
-                    
-                    <button 
-                      onClick={() => exportChecklistCsv(tenderData.tender, evaluatedRequirements)}
-                      className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg shadow-sm transition-colors font-medium border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    >
-                      <FileSpreadsheet size={18} className="text-emerald-500" />
-                      <span>{t.exportCsvBtn}</span>
-                    </button>
-                    
-                    <label className="flex items-center gap-2 cursor-pointer mt-4 p-2 hover:bg-slate-50 rounded-lg transition-colors text-sm text-slate-600 select-none border border-transparent">
-                      <input 
-                        type="checkbox" 
-                        checked={includeIndex} 
-                        onChange={(e) => setIncludeIndex(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-                      />
-                      <span>{t.includeIndexPage}</span>
-                    </label>
-                  </div>
-
-                  <hr className="border-slate-100 mb-6" />
-
-                  {blockingIssues.length > 0 ? (
-                    <div className="mb-6">
-                      <div className="flex items-center gap-2 text-red-600 font-semibold text-sm mb-3">
-                        <XCircle size={18} />
-                        {blockingIssues.length} {t.blockingNoticeTitle}
-                      </div>
-                      <ul className="text-sm space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                        {blockingIssues.map((issue) => (
-                          <li key={issue.requirement.id} className="text-slate-600 flex gap-2">
-                            <span className="text-red-500 shrink-0 mt-0.5">•</span>
-                            <span>
-                              <span className="font-medium text-slate-800">{language === 'en' ? issue.requirement.title_en : issue.requirement.title_bn}</span> 
-                              {' — '} {getStatusText(issue.status, language)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <div className="mb-6 bg-emerald-50 border border-emerald-100 rounded-lg p-4 flex items-center gap-3">
-                      <CheckCircle2 className="text-emerald-500 shrink-0" size={24} />
-                      <p className="text-sm font-medium text-emerald-800">{t.readyToGenerate}</p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleGenerate}
-                    disabled={!isReady || genStatus.status === 'generating'}
-                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg shadow-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                      isReady 
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-600' 
-                        : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                    }`}
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  <button 
+                    onClick={handleAutoMatch}
+                    className="flex-1 flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg shadow-sm transition-colors font-medium border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   >
-                    <FileDown size={20} />
-                    <span>{t.generatePackageBtn}</span>
+                    <Wand2 size={18} className="text-purple-500" />
+                    <span>{t.autoMatchBtn}</span>
                   </button>
-
-                  {genStatus.status === 'generating' && (
-                    <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                      <div className="flex justify-between text-xs text-blue-700 font-medium mb-1.5">
-                        <span>{genStatus.message}</span>
-                        <span>{genStatus.progressPercent}%</span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                        <div 
-                          className="bg-blue-500 h-1.5 rounded-full transition-all duration-300" 
-                          style={{ width: `${genStatus.progressPercent}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
-
-                  {genStatus.status === 'success' && genStatus.downloadUrl && (
-                    <div className="mt-4 bg-emerald-50 border border-emerald-200 p-4 rounded-lg text-center">
-                      <p className="text-emerald-700 text-sm font-bold mb-2">{genStatus.message}</p>
-                      <a 
-                        href={genStatus.downloadUrl} 
-                        download={genStatus.filename}
-                        className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-sm font-semibold underline"
-                      >
-                        <Download size={16} /> {t.downloadPackage}
-                      </a>
-                    </div>
-                  )}
                   
-                  {genStatus.status === 'error' && (
-                     <div className="mt-4 bg-red-50 border border-red-200 p-3 rounded-lg text-center">
-                     <p className="text-red-600 text-sm font-medium">{genStatus.message}</p>
-                   </div>
-                  )}
+                  <button 
+                    onClick={() => exportChecklistCsv(tenderData.tender, evaluatedRequirements)}
+                    className="flex-1 flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-lg shadow-sm transition-colors font-medium border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <FileSpreadsheet size={18} className="text-emerald-500" />
+                    <span>{t.exportCsvBtn}</span>
+                  </button>
                 </div>
+                
+                <label className="flex items-center gap-2 cursor-pointer mb-6 p-2 hover:bg-slate-50 rounded-lg transition-colors text-sm text-slate-600 select-none border border-transparent w-fit">
+                  <input 
+                    type="checkbox" 
+                    checked={includeIndex} 
+                    onChange={(e) => setIncludeIndex(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                  />
+                  <span>{t.includeIndexPage}</span>
+                </label>
+
+                <hr className="border-slate-100 mb-6" />
+
+                {blockingIssues.length > 0 ? (
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 text-red-600 font-semibold text-sm mb-3">
+                      <XCircle size={18} />
+                      Resolve {blockingIssues.length} blocking issues to generate the package.
+                    </div>
+                    <ul className="text-sm space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                      {blockingIssues.map((issue) => (
+                        <li key={issue.requirement.id} className="text-slate-600 flex gap-2">
+                          <span className="text-red-500 shrink-0 mt-0.5">•</span>
+                          <span>
+                            <span className="font-medium text-slate-800">{language === 'en' ? issue.requirement.title_en : issue.requirement.title_bn}</span> 
+                            {' — '} {getStatusText(issue.status, language)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="mb-6 bg-emerald-50 border border-emerald-100 rounded-lg p-4 flex items-center gap-3">
+                    <CheckCircle2 className="text-emerald-500 shrink-0" size={24} />
+                    <p className="text-sm font-medium text-emerald-800">{t.readyToGenerate}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleGenerate}
+                  disabled={!isReady || genStatus.status === 'generating'}
+                  className={`w-full flex flex-col items-center justify-center gap-1 px-4 py-4 rounded-xl shadow-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    isReady 
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-600' 
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-lg">
+                    <FileDown size={24} />
+                    <span>{t.generatePackageBtn}</span>
+                  </div>
+                  {isReady && <span className="text-xs font-medium text-blue-200">Create the final tender PDF package</span>}
+                </button>
+
+                {genStatus.status === 'generating' && (
+                  <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                    <div className="flex justify-between text-xs text-blue-700 font-medium mb-2">
+                      <span>{genStatus.message}</span>
+                      <span>{genStatus.progressPercent}%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${genStatus.progressPercent}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {genStatus.status === 'success' && genStatus.downloadUrl && (
+                  <div className="mt-6 bg-emerald-50 border border-emerald-200 p-6 rounded-xl text-center">
+                    <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle2 size={24} />
+                    </div>
+                    <p className="text-emerald-800 text-base font-bold mb-1">Package Ready</p>
+                    <p className="text-emerald-600 text-sm mb-4">Your tender package has been generated successfully.</p>
+                    <a 
+                      href={genStatus.downloadUrl} 
+                      download={genStatus.filename}
+                      className="inline-flex items-center justify-center w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-lg shadow-sm transition-colors text-sm font-semibold"
+                    >
+                      <Download size={18} /> {t.downloadPackage}
+                    </a>
+                  </div>
+                )}
+                
+                {genStatus.status === 'error' && (
+                   <div className="mt-4 bg-red-50 border border-red-200 p-4 rounded-lg text-center flex items-center justify-center gap-2">
+                   <AlertTriangle className="text-red-500" size={20} />
+                   <p className="text-red-700 text-sm font-medium">{genStatus.message}</p>
+                 </div>
+                )}
               </div>
             </div>
           </>

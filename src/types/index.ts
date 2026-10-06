@@ -34,6 +34,8 @@ export interface UploadedFile {
   duplicateGroup?: string;
   isCorrupted?: boolean;
   errorMessage?: string;
+  pdfText?: string;
+  detectedExpiryDate?: string;
 }
 
 export type OfficialStatus =

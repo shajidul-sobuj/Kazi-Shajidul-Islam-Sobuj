@@ -2,36 +2,43 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import type { EvaluatedRequirement, TenderMetadata } from '../types';
 
 /**
- * Read and count pages of a PDF File safely.
- * Returns { pageCount, rawBytes } or throws error if damaged/encrypted.
+ * Read a PDF File safely and verify its header.
+ * Returns { rawBytes } or throws error if invalid/empty.
  */
 export async function inspectPdfFile(
   file: File
-): Promise<{ pageCount: number; rawBytes: Uint8Array }> {
+): Promise<{ rawBytes: Uint8Array }> {
   const arrayBuffer = await file.arrayBuffer();
+  
+  if (arrayBuffer.byteLength === 0) {
+    throw new Error('File is empty.');
+  }
+
   const rawBytes = new Uint8Array(arrayBuffer);
 
-  try {
-    const pdfDoc = await PDFDocument.load(rawBytes, {
-      ignoreEncryption: false,
-    });
-    const pageCount = pdfDoc.getPageCount();
-    return { pageCount, rawBytes };
-  } catch (err: unknown) {
-    const errorMsg =
-      err instanceof Error ? err.message : 'Unknown PDF loading error';
+  // Safely check for %PDF- header in the first 1024 bytes
+  const maxSearch = Math.min(rawBytes.length, 1024);
+  const header = [0x25, 0x50, 0x44, 0x46, 0x2D]; // %PDF-
+  let found = false;
+  
+  for (let i = 0; i <= maxSearch - 5; i++) {
     if (
-      errorMsg.toLowerCase().includes('encrypt') ||
-      errorMsg.toLowerCase().includes('password')
+      rawBytes[i] === header[0] &&
+      rawBytes[i+1] === header[1] &&
+      rawBytes[i+2] === header[2] &&
+      rawBytes[i+3] === header[3] &&
+      rawBytes[i+4] === header[4]
     ) {
-      throw new Error(
-        'PDF is password protected or encrypted. Please provide an unencrypted PDF.'
-      );
+      found = true;
+      break;
     }
-    throw new Error(
-      `Corrupted or unreadable PDF: ${errorMsg}`
-    );
   }
+
+  if (!found) {
+    throw new Error('Invalid or unreadable PDF file.');
+  }
+
+  return { rawBytes };
 }
 
 export interface GeneratePackageOptions {
@@ -244,20 +251,26 @@ export async function generateTenderPackagePdf({
 
     if (!doc.matchedFile?.rawBytes) continue;
 
-    const sourceDoc = await PDFDocument.load(doc.matchedFile.rawBytes);
-    const pageIndices = sourceDoc.getPageIndices();
-    const copiedPages = await mergedPdf.copyPages(sourceDoc, pageIndices);
+    try {
+      // Pass a freshly sliced copy to avoid detached ArrayBuffer issues
+      const safeBytes = new Uint8Array(doc.matchedFile.rawBytes);
+      const sourceDoc = await PDFDocument.load(safeBytes);
+      const pageIndices = sourceDoc.getPageIndices();
+      const copiedPages = await mergedPdf.copyPages(sourceDoc, pageIndices);
 
-    documentPageStarts.push({
-      title: doc.requirement.title_en,
-      order: doc.requirement.order,
-      startPage: currentPageIndex + 1,
-      pages: copiedPages.length,
-    });
+      documentPageStarts.push({
+        title: doc.requirement.title_en,
+        order: doc.requirement.order,
+        startPage: currentPageIndex + 1,
+        pages: copiedPages.length,
+      });
 
-    for (const page of copiedPages) {
-      mergedPdf.addPage(page);
-      currentPageIndex++;
+      for (const page of copiedPages) {
+        mergedPdf.addPage(page);
+        currentPageIndex++;
+      }
+    } catch (err: any) {
+      throw new Error(`Failed to read document for requirement: ${doc.requirement.title_en}. It may be corrupted or invalid.`);
     }
   }
 
