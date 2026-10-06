@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Language, UploadedFile } from '../types';
+import { useRef, useState } from 'react';
+import type { Language, UploadedFile } from '../types';
 import { translations } from '../i18n/translations';
 import { inspectPdfFile } from '../utils/pdf';
 import { calculateSHA256 } from '../utils/crypto';
@@ -43,7 +43,7 @@ export function PDFUploader({ language, files, onFilesAdded, onFileRemoved }: Pr
       try {
         const result = await inspectPdfFile(file);
         pageCount = result.pageCount;
-        rawBytes = result.rawBytes;
+        rawBytes = result.rawBytes as any;
         hash = await calculateSHA256(rawBytes.buffer);
       } catch (err: any) {
         isCorrupted = true;

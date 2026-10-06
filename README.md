@@ -1,32 +1,48 @@
-# React + TypeScript + Vite
+# Tender Document Package Builder
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A powerful frontend-only application for verifying, organizing, and merging PDF documents for tender submissions. Developed for the AI DevFest competition.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Schema Validation:** Ingests `requirements.json` to dynamically build the compliance checklist.
+- **Smart Validation Engine:** Strictly verifies mandatory documents, expiry dates (inclusive of deadline), and optional fields without false positives.
+- **Duplicate Detection:** In-browser cryptographic SHA-256 hash comparison instantly flags duplicated PDF attachments and prevents dual-assignments.
+- **PDF Construction & Assembly:** Generates a pristine, compliant PDF package featuring:
+  - Executive Cover Page (Tender metadata, timestamp, checklist).
+  - Dynamic Table of Contents / Index Page.
+  - Sequentially merged attachments.
+  - Stamped pagination footers (`<tender_id> | Page X of Y`).
+- **Auto-Match Heuristic:** Smart token-based filename matching instantly assigns uploaded PDFs to appropriate checklist slots.
+- **CSV Audit Export:** Generates an Excel-ready compliance report.
+- **Fully Bilingual:** Seamless English and Bengali (বাংলা) interface toggling.
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Framework:** React 19 + TypeScript + Vite 8
+- **Styling:** Tailwind CSS v4
+- **PDF Engine:** `pdf-lib`
+- **Icons:** `lucide-react`
+- **Architecture:** 100% Client-side. No backend. No database. Zero server storage.
 
-## Expanding the Oxlint configuration
+## How to Run Locally
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
+3. Open `http://localhost:5173` in your browser (Google Chrome recommended).
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## AI Assistance Details
+- **AI Tool Used:** Gemini 3.1 Pro (via Antigravity Workspace)
+- **Most Useful Prompt:** The initial multi-phase strategy and constraints prompt that outlined exact PDF-lib coordinate stamping, timezone-safe date parsing, and strict duplicate-prevention state machines.
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Known Limitations
+- Extremely large PDFs (>50MB total) may cause temporary browser memory pressure due to client-side binary processing.
+- Filename Auto-match is heuristic-based; office staff should always verify matches before final generation.
+
+## License
+MIT License

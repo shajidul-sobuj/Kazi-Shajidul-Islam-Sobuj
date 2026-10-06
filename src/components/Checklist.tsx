@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { CheckCircle2, AlertCircle, XCircle, HelpCircle, Calendar } from 'lucide-react';
 import type { EvaluatedRequirement, Language, UploadedFile, OfficialStatus } from '../types';
 import { translations, getStatusText } from '../i18n/translations';
@@ -137,7 +137,7 @@ export function Checklist({ language, evaluatedRequirements, files, onMatchChang
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border ${getStatusBg(er.isBlocking, er.status)}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border ${getStatusBg(er.status)}`}>
                         {getStatusIcon(er.status)}
                         <span className="whitespace-nowrap">{getStatusText(er.status, language)}</span>
                       </span>

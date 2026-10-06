@@ -1,4 +1,4 @@
-import { Requirement, UploadedFile } from '../types';
+import type { Requirement, UploadedFile } from '../types';
 
 /**
  * Clean and tokenize a string for fuzzy matching.

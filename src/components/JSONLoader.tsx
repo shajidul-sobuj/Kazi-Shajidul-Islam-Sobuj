@@ -1,5 +1,5 @@
-import React from 'react';
-import { Language, RequirementsData } from '../types';
+import type { ChangeEvent } from 'react';
+import type { Language, RequirementsData } from '../types';
 import { translations } from '../i18n/translations';
 import { UploadCloud } from 'lucide-react';
 
@@ -11,7 +11,7 @@ interface Props {
 export function JSONLoader({ language, onDataLoaded }: Props) {
   const t = translations[language];
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 

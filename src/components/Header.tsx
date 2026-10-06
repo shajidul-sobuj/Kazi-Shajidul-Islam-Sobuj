@@ -1,5 +1,4 @@
-import React from 'react';
-import { Language } from '../types';
+import type { Language } from '../types';
 import { translations } from '../i18n/translations';
 import { FileText, Globe } from 'lucide-react';
 

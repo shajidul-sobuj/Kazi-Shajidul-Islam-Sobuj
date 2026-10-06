@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Header } from './components/Header';
 import { JSONLoader } from './components/JSONLoader';
 import { PDFUploader } from './components/PDFUploader';
 import { Checklist } from './components/Checklist';
-import { Language, RequirementsData, UploadedFile, EvaluatedRequirement, PackageGenerationProgress } from './types';
+import type { Language, RequirementsData, UploadedFile, PackageGenerationProgress } from './types';
 import { evaluateAllRequirements } from './utils/status';
 import { suggestAutoMatches } from './utils/autoMatch';
 import { exportChecklistCsv } from './utils/csv';
@@ -105,7 +105,7 @@ function App() {
         onProgress: (percent, msg) => setGenStatus({ status: 'generating', message: msg, progressPercent: percent })
       });
 
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const filename = `${tenderData.tender.tender_id}_Package.pdf`;
 

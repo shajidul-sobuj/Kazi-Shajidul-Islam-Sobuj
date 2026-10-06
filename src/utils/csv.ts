@@ -1,4 +1,4 @@
-import { EvaluatedRequirement, TenderMetadata } from '../types';
+import type { EvaluatedRequirement, TenderMetadata } from '../types';
 
 /**
  * Generate CSV text and trigger download for checklist audit.
